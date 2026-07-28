@@ -1,9 +1,19 @@
-FROM python:3
+FROM python:3.12
 
 WORKDIR /opt
 
-RUN pip install --upgrade Pillow==5.4.1 idna==2.8 requests==2.21.0 urllib3==1.24.1 pycairo==1.20.1 gftools==0.7.4 fontmake==2.4.0 fontbakery==0.8.0
-RUN apt-get update && \
-    apt-get install -y ttfautohint && \
-    apt-get install -y woff2 && \
-    apt-get install -y sfnt2woff-zopfli
+# unused transitive deps without arm64 wheels
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        for stub in "resvg-cli 0.44.0" "opentype-sanitizer 9.2.0" "pngquant-cli 3.0.3"; do \
+            set -- $stub && \
+            mkdir -p /tmp/stub && \
+            printf '[project]\nname = "%s"\nversion = "%s"\n' "$1" "$2" > /tmp/stub/pyproject.toml && \
+            pip install /tmp/stub && \
+            rm -rf /tmp/stub; \
+        done; \
+    fi
+
+COPY requirements.txt .
+COPY script/bootstrap_linux.sh script/
+RUN script/bootstrap_linux.sh
